@@ -13,6 +13,7 @@ import {
 } from 'vscode-languageserver';
 
 var coffeeLint = require('coffeelint');
+var getConfig = require('coffeelint/lib/configfinder').getConfig;
 var fs = require('fs');
 var path = require('path');
 
@@ -21,22 +22,20 @@ let connection: IConnection = createConnection(new IPCMessageReader(process), ne
 let documents: TextDocuments = new TextDocuments();
 documents.listen(connection);
 
-let coffeLintConfigFile: string;
 let projectLintConfig = {};
 
 function loadCofffeeLintConfig() {
   try {
-    projectLintConfig = JSON.parse(fs.readFileSync(coffeLintConfigFile));
+    projectLintConfig = getConfig();
   }
   catch (error) {
     // no config file or malformed, use default then
-  }  
+  }
 }
 
 connection.onInitialize((params): InitializeResult => {
-  coffeLintConfigFile = path.join(params.rootPath, 'coffeelint.json');
   loadCofffeeLintConfig()
-  
+
   return {
     capabilities: {
       textDocumentSync: documents.syncKind,
@@ -51,19 +50,19 @@ documents.onDidChangeContent((change) => {
   validateTextDocument(change.document);
 });
 
-function validateTextDocument(textDocument: ITextDocument): void {  
+function validateTextDocument(textDocument: ITextDocument): void {
   let diagnostics: Diagnostic[] = [];
   let text = textDocument.getText();
   let issues = coffeeLint.lint(text, projectLintConfig);
   for(var issue of issues) {
     var severity;
-    
+
     if(issue.level === "warning") {
       severity = DiagnosticSeverity.Warning;
     } else {
       severity = DiagnosticSeverity.Error;
     }
-    
+
     diagnostics.push({
       severity: severity,
       range: {
